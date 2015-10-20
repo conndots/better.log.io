@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+winston = require('winston');
+logging = new winston.Logger({
+    transports: [
+        new winston.transports.Console({
+                level: 'error'
+        })
+    ]
+});
+var confPath = '../conf/rtail.io-server.conf';
+conf = require(confPath).config;
+conf.logger = logging;
+conf.confPath = confPath;
+server = require('../index.js');
+server = new server.ConfigServer(conf);
+server.run();

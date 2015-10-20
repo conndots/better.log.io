@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+winston = require('winston');
+logging = new winston.Logger({
+    transports: [
+        new winston.transports.Console({
+                level: 'error'
+        })
+    ]
+});
+var configPath = '../conf/rtail.io-tailer.conf';
+conf = require(configPath).config;
+conf.logger = logging;
+conf.confPath = configPath;
+tailer = require('../index.js');
+tailer = new tailer.TailerServer(conf);
+tailer.run();
