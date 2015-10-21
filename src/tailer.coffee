@@ -48,7 +48,10 @@ class TailerServer extends events.EventEmitter
         @http = @_createServer config, app
         @_register2ConfServer
 
+        #The global logPath -> subscribedStream -> count dict
         logPathToSubscribedStreams = {}
+        #The dict mapping logPath to the corresponding tailer
+        logPathToTailer = {}
 
         that = @
         configIO = io.listen @http.listen @configPort, "127.0.0.1"
