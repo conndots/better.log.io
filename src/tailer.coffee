@@ -77,7 +77,7 @@ class TailerServer extends events.EventEmitter
 
         tailIO.on "connection", (socket) ->
             #The number of sockets subscribing the logpath in the current socket
-            socketPathToSubCount = {}
+            socketLogPathToStreams = {}
             socket.on "subscribe", (stream) ->
                 logPaths = that.streams[stream]
                 for logPath in logPaths
@@ -93,10 +93,15 @@ class TailerServer extends events.EventEmitter
                         subscribedStreams[stream] = 0
                     subscribedStreams[stream] += 1
 
-                    socketSubCount = socketPathToSubCount[logPath]
+                    socketSubDict = socketPathToSubCount[logPath]
+                    if not socketSubDict
+                        socketSubDict = {}
+                        socketLogPathToStreams[logPath] = socketSubDict
+                    socketSubCount = socketSubDict[stream]
                     if not socketSubCount
-                        socketPathToSubCount[logPath] = 0
-                    socketPathToSubCount[logPath] += 1
+                        socketSubDict[stream] = 1
+                    else
+                        that.logger.error "Subscribe the same stream '#{stream}' for more than once"
 
                 socket.join stream
 
@@ -113,28 +118,40 @@ class TailerServer extends events.EventEmitter
                     subscribedStreams = logPathToSubscribedStreams[logPath]
                     if subscribedStreams
                         streamCount = subscribedStreams[stream]
+                        #TODO Extract the tailer management to a specific class
                         if streamCount == 1
                             delete subscribedStreams[stream]
                         else if streamCount > 1
                             subscribedStreams[stream] -= 1
+
                         if Object.keys(subscribedStreams).length == 0
                             delete logPathToSubscribedStreams[logPath]
                             tailer = logPathToTailer[logPath]
-                            tailer.terminateTail
-                            delete logPathToTailer[logPath]
+                            if tailer
+                                tailer.terminateTail
+                                delete logPathToTailer[logPath]
+
+                    socketSubscribedStreams = socketLogPathToStreams[logPath]
+                    if socketSubscribedStreams
+                        delete socketSubscribedStreams[stream]
 
             socket.on "disconnect", ->
-                # terminate the tailer process if the socket disconnets and no one subscribe to the speciic tailer
-                for logPath, count of socketPathToSubCount
+                # terminate the tailer process if the socket disconnets and no one subscribe to the tailer to the specific logpath
+                for logPath, streams of socketLogPathToStreams
                     subscribedStreams = logPathToSubscribedStreams[logPath]
-                    totalCount = 0
-                    for stream, streamCount of subscribedStreams
-                        totalCount += streamCount
-                    if count >= totalCount
+                    for stream, count of streams
+                        streamCount = subscribedStreams[stream]
+                        if streamCount == 1
+                            delete subscribedStreams[stream]
+                        else if streamCount > 1
+                            subscribedStreams[stream] -= 1
+
+                    if Object.keys(subscribedStreams).length == 0
                         delete logPathToSubscribedStreams[logPath]
                         tailer = logPathToTailer[logPath]
-                        tailer.terminateTail
-                        delete logPathToTailer[logPath]
+                        if tailer
+                            tailer.terminateTail
+                            delete logPathToTailer[logPath]
 
 
     _buildServer: (config) ->
