@@ -26,7 +26,7 @@ class LogTailer
         @tail.on "data", (data) ->
             lines = breakLine + data.toString
             splits = lines.split "\n"
-            if not (S splits[splits.length - 1]).endsWith "\n"
+            if not _s(splits[splits.length - 1]).endsWith "\n"
                 breakLine = splits[splits.length - 1]
                 splits.pop
             for logLine in splits
