@@ -54,8 +54,8 @@ class TailerServer extends events.EventEmitter
         logPathToTailer = {}
 
         that = @
-        configIO = io.listen @http.listen @configPort, "127.0.0.1"
-        tailIO = io.listen @http.listen @tailPort, "127.0.0.1"
+        configIO = io.listen @http.listen @configPort, "0.0.0.0"
+        tailIO = io.listen @http.listen @tailPort, "0.0.0.0"
 
         configIO.on "connection", (socket) ->
             socket.on "ping", (data) ->
