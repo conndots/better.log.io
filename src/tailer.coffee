@@ -30,6 +30,7 @@ class LogTailer
                 breakLine = splits[splits.length - 1]
                 splits.pop
             for logLine in splits
+                @logger.info logLine
                 that.tailerServer.emit "lineTailed", that.logPath, logLine
         @tail.stderr.on 'data', (data) ->
             that.tailerServer.emit "sys", that.logPath, "Error: #{data.toString()}"
@@ -39,13 +40,17 @@ class LogTailer
             @tail.kill "SIGINT"
             @logger.info "#{@logPath} tailing process is terminated."
 
+class
+
 class TailerServer extends events.EventEmitter
     constructor: (config) ->
         {@configServerAddress, @hostname, @configPort, @tailPort, @streams, @logger} = config
 
-    run: ->
-        app = @_buildServer config
-        @http = @_createServer config, app
+    run: () ->
+        configApp = @_buildServer
+        @chttp = @_createServer configApp
+        tailApp = @_buildServer
+        @thttp = @_createServer tailApp
         @_register2ConfServer
 
         #The global logPath -> subscribedStream -> count dict
@@ -54,8 +59,8 @@ class TailerServer extends events.EventEmitter
         logPathToTailer = {}
 
         that = @
-        configIO = io.listen @http.listen @configPort, "0.0.0.0"
-        tailIO = io.listen @http.listen @tailPort, "0.0.0.0"
+        configIO = io.listen @chttp.listen @configPort, "0.0.0.0"
+        tailIO = io.listen @thttp.listen @tailPort, "0.0.0.0"
 
         configIO.on "connection", (socket) ->
             socket.on "ping", (data) ->
@@ -64,6 +69,7 @@ class TailerServer extends events.EventEmitter
         @on "lineTailed", (logPath, message) ->
             subscribedStreams = logPathToSubscribedStreams[logPath]
             for stream, subscribeNum of subscribedStreams
+                @logger.info "send for stream #{stream} of mes: #{message}"
                 tailIO.in(stream).emit "lineTailed",
                     stream: stream
                     node: that.hostname
@@ -157,13 +163,13 @@ class TailerServer extends events.EventEmitter
                             delete logPathToTailer[logPath]
 
 
-    _buildServer: (config) ->
+    _buildServer: () ->
         app = express()
-        staticPath = config.staticPath ? __dirname + '/../'
-        app.use express.static staticPath
+        #staticPath = config.staticPath ? __dirname + '/../'
+        #app.use express.static staticPath
 
-    _createServer: (config, app) ->
-        http.createServer app
+    _createServer: (app) ->
+        http.Server app
 
     _register2ConfServer: ->
         socket = ioClient.connect @configServerAddress,
